@@ -12,6 +12,8 @@ namespace esphome
     //   OFF         → rest_mode=1 (sleep/rest, energy-saving standby)
     //   ECO         → rest_mode=0, highrange=0 (ready, standard temp range)
     //   PERFORMANCE → rest_mode=0, highrange=1 (ready, high temp range)
+    //   HEAT_PUMP   → rest_mode=0, highrange=1 (ready, high temp range)
+    //   ELECTRIC    → rest_mode=0, highrange=1 (ready, high temp range)
 
     class BalboaSpaWaterHeater : public water_heater::WaterHeater
     {
@@ -20,6 +22,7 @@ namespace esphome
       {
         spa = nullptr;
         last_update_time = 0;
+        preferred_highrange_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
       };
 
       void setup() override;
@@ -38,6 +41,7 @@ namespace esphome
     private:
       BalboaSpa *spa;
       uint32_t last_update_time;
+      water_heater::WaterHeaterMode preferred_highrange_mode;
     };
 
   } // namespace balboa_spa

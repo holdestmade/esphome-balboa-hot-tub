@@ -13,6 +13,8 @@ namespace esphome
         //   OFF         → rest_mode=1 (sleep/rest, energy-saving standby)
         //   ECO         → rest_mode=0, highrange=0 (ready, standard temp range)
         //   PERFORMANCE → rest_mode=0, highrange=1 (ready, high temp range)
+        //   HEAT_PUMP   → rest_mode=0, highrange=1 (ready, high temp range)
+        //   ELECTRIC    → rest_mode=0, highrange=1 (ready, high temp range)
 
         water_heater::WaterHeaterTraits BalboaSpaWaterHeater::traits()
         {
@@ -21,6 +23,8 @@ namespace esphome
                 water_heater::WATER_HEATER_MODE_OFF,
                 water_heater::WATER_HEATER_MODE_ECO,
                 water_heater::WATER_HEATER_MODE_PERFORMANCE,
+                water_heater::WATER_HEATER_MODE_HEAT_PUMP,
+                water_heater::WATER_HEATER_MODE_ELECTRIC,
             });
             traits.set_supports_current_temperature(true);
             return traits;
@@ -38,6 +42,12 @@ namespace esphome
             if (call.has_value() && call->get_mode().has_value())
             {
                 this->mode_ = *call->get_mode();
+                if (this->mode_ == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
+                    this->mode_ == water_heater::WATER_HEATER_MODE_ELECTRIC ||
+                    this->mode_ == water_heater::WATER_HEATER_MODE_PERFORMANCE)
+                {
+                    this->preferred_highrange_mode = this->mode_;
+                }
                 float saved_temp = call->get_target_temperature();
                 if (!std::isnan(saved_temp))
                     this->target_temperature_ = saved_temp;
@@ -62,6 +72,22 @@ namespace esphome
                 auto requested_mode = *call.get_mode();
                 bool is_in_rest = spa->get_restmode();
 
+                if (requested_mode == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
+                    requested_mode == water_heater::WATER_HEATER_MODE_ELECTRIC ||
+                    requested_mode == water_heater::WATER_HEATER_MODE_PERFORMANCE)
+                {
+                    this->preferred_highrange_mode = requested_mode;
+                }
+
+                // Optimistically store the requested mode so aliases like
+                // HEAT_PUMP/ELECTRIC are preserved during subsequent
+                // highrange state refreshes.
+                if (this->mode_ != requested_mode)
+                {
+                    this->mode_ = requested_mode;
+                    this->publish_state();
+                }
+
                 if (requested_mode == water_heater::WATER_HEATER_MODE_OFF)
                 {
                     if (!is_in_rest)
@@ -85,6 +111,24 @@ namespace esphome
                     if (is_in_rest)
                     {
                         ESP_LOGD(TAG, "Switching to PERFORMANCE (ready, high range) mode");
+                        spa->toggle_heat();
+                    }
+                }
+                else if (requested_mode == water_heater::WATER_HEATER_MODE_HEAT_PUMP)
+                {
+                    spa->set_highrange(true);
+                    if (is_in_rest)
+                    {
+                        ESP_LOGD(TAG, "Switching to HEAT_PUMP (ready, high range) mode");
+                        spa->toggle_heat();
+                    }
+                }
+                else if (requested_mode == water_heater::WATER_HEATER_MODE_ELECTRIC)
+                {
+                    spa->set_highrange(true);
+                    if (is_in_rest)
+                    {
+                        ESP_LOGD(TAG, "Switching to ELECTRIC (ready, high range) mode");
                         spa->toggle_heat();
                     }
                 }
@@ -134,7 +178,7 @@ namespace esphome
                 }
                 else if (spaState->highrange == 1)
                 {
-                    new_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
+                    new_mode = this->preferred_highrange_mode;
                 }
                 else
                 {
