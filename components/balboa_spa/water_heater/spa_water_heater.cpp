@@ -156,7 +156,16 @@ namespace esphome
                 }
                 else if (spaState->highrange == 1)
                 {
-                    new_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
+                    // Keep explicit high-range aliases selected by user.
+                    if (this->mode_ == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
+                        this->mode_ == water_heater::WATER_HEATER_MODE_ELECTRIC)
+                    {
+                        new_mode = this->mode_;
+                    }
+                    else
+                    {
+                        new_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
+                    }
                 }
                 else
                 {
