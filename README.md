@@ -10,30 +10,28 @@ I and multiple other users see a ton of CRC errors.  I've spent some time invest
 ## Sample Config
 ```yaml
 esphome:
-  name: hottub
-  friendly_name: hottub
+  name: hot-tub
+  friendly_name: "Hot Tub Controller"
+  comment: ESP32 and TTL to RS485
 
 esp32:
-  board: lolin_s2_mini
-  framework: 
+  board: esp32dev
+  framework:
     type: esp-idf
 
 external_components:
   - source:
-     type: git
-     url: https://github.com/holdestmade/esphome-balboa-hot-tub
-     ref: main
-
-# API and Time required for Sync Spa Time Button. 
-api:
+      type: git
+      url: https://github.com/holdestmade/esphome-balboa-hot-tub
+      ref: main
 
 time:
   - platform: homeassistant
 
 uart:
   id: spa_uart_bus
-  tx_pin: GPIO37
-  rx_pin: GPIO39
+  tx_pin: GPIO17
+  rx_pin: GPIO16
   data_bits: 8
   parity: NONE
   stop_bits: 1
@@ -42,10 +40,7 @@ uart:
 
 balboa_spa:
   id: spa
-  # Set this to C or F based on the units your spa is configured for
-  spa_temp_scale: F
-  # Optional: Override the automatically assigned client ID
-  # client_id: 10
+  spa_temp_scale: C
 
 light:
   - platform: balboa_spa
