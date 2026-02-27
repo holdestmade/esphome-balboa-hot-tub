@@ -1,7 +1,5 @@
 ## Component for Balboa Spa
-This project is based on the UART reader from [Dakoriki/ESPHome-Balboa-Spa](https://github.com/Dakoriki/ESPHome-Balboa-Spa)
-
-There are a ton of these implementations on Github.  None of the ones I could find implemented the external component pattern as prescribed by EspHome.  So I create this one.  
+This project is based on https://github.com/brianfeucht/esphome-balboa-spa
 
 All components are optional (climate, switch, text_sensor, etc).  So you only need to import what you want with your implementation.
 
@@ -23,7 +21,7 @@ esp32:
 external_components:
   - source:
      type: git
-     url: https://github.com/brianfeucht/esphome-balboa-spa
+     url: https://github.com/holdestmade/esphome-balboa-hot-tub
      ref: main
 
 # API and Time required for Sync Spa Time Button. 
@@ -584,28 +582,3 @@ The text sensors display current spa status:
 - **spa_time**: Current spa time in HH:MM format
 - **filter1_config**: Current filter 1 configuration in JSON format
 - **filter2_config**: Current filter 2 configuration in JSON format (or "disabled")
-
-## Development & CI
-
-### Manual CI Builds
-
-The CI workflow can be manually triggered to test compatibility with specific ESPHome versions:
-
-1. Go to the [Actions tab](../../actions/workflows/ci.yml)
-2. Click "Run workflow"
-3. Select the `main` branch
-4. Optionally specify an ESPHome version (e.g., `2025.11.0`, `dev`, or leave as `stable`)
-5. Click "Run workflow"
-
-This is useful for:
-- Testing compatibility with newly released ESPHome versions
-- Validating changes against development versions
-- Quick verification without waiting for automatic triggers
-
-The workflow builds all test configurations (ESP32 Arduino, ESP32 IDF, and ESP8266) to ensure broad platform compatibility.
-
-### ESP WebUI
-![image](https://github.com/user-attachments/assets/af602be2-da9e-4880-8fb8-e7f7f9122977)
-
-### Home Assistant UI
-![image](https://github.com/user-attachments/assets/a37a7e08-94b2-4231-83ca-0ffc4646fbfa)
