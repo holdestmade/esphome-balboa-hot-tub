@@ -66,6 +66,15 @@ namespace esphome
                 auto requested_mode = *call.get_mode();
                 bool is_in_rest = spa->get_restmode();
 
+                // Optimistically store the requested mode so aliases like
+                // HEAT_PUMP/ELECTRIC are preserved during subsequent
+                // highrange state refreshes.
+                if (this->mode_ != requested_mode)
+                {
+                    this->mode_ = requested_mode;
+                    this->publish_state();
+                }
+
                 if (requested_mode == water_heater::WATER_HEATER_MODE_OFF)
                 {
                     if (!is_in_rest)
