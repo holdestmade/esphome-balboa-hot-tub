@@ -12,6 +12,8 @@ namespace esphome
     //   OFF         → rest_mode=1 (sleep/rest, energy-saving standby)
     //   ECO         → rest_mode=0, highrange=0 (ready, standard temp range)
     //   PERFORMANCE → rest_mode=0, highrange=1 (ready, high temp range)
+    //   HEAT_PUMP   → rest_mode=0, highrange=1 (ready, high temp range)
+    //   ELECTRIC    → rest_mode=0, highrange=1 (ready, high temp range)
 
     class BalboaSpaWaterHeater : public water_heater::WaterHeater
     {
