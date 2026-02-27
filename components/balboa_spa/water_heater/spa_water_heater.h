@@ -22,6 +22,7 @@ namespace esphome
       {
         spa = nullptr;
         last_update_time = 0;
+        preferred_highrange_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
       };
 
       void setup() override;
@@ -40,6 +41,7 @@ namespace esphome
     private:
       BalboaSpa *spa;
       uint32_t last_update_time;
+      water_heater::WaterHeaterMode preferred_highrange_mode;
     };
 
   } // namespace balboa_spa

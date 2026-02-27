@@ -42,6 +42,12 @@ namespace esphome
             if (call.has_value() && call->get_mode().has_value())
             {
                 this->mode_ = *call->get_mode();
+                if (this->mode_ == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
+                    this->mode_ == water_heater::WATER_HEATER_MODE_ELECTRIC ||
+                    this->mode_ == water_heater::WATER_HEATER_MODE_PERFORMANCE)
+                {
+                    this->preferred_highrange_mode = this->mode_;
+                }
                 float saved_temp = call->get_target_temperature();
                 if (!std::isnan(saved_temp))
                     this->target_temperature_ = saved_temp;
@@ -65,6 +71,13 @@ namespace esphome
             {
                 auto requested_mode = *call.get_mode();
                 bool is_in_rest = spa->get_restmode();
+
+                if (requested_mode == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
+                    requested_mode == water_heater::WATER_HEATER_MODE_ELECTRIC ||
+                    requested_mode == water_heater::WATER_HEATER_MODE_PERFORMANCE)
+                {
+                    this->preferred_highrange_mode = requested_mode;
+                }
 
                 // Optimistically store the requested mode so aliases like
                 // HEAT_PUMP/ELECTRIC are preserved during subsequent
@@ -165,16 +178,7 @@ namespace esphome
                 }
                 else if (spaState->highrange == 1)
                 {
-                    // Keep explicit high-range aliases selected by user.
-                    if (this->mode_ == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
-                        this->mode_ == water_heater::WATER_HEATER_MODE_ELECTRIC)
-                    {
-                        new_mode = this->mode_;
-                    }
-                    else
-                    {
-                        new_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
-                    }
+                    new_mode = this->preferred_highrange_mode;
                 }
                 else
                 {
