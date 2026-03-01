@@ -11,6 +11,7 @@ class SpaState {
         SpaState() {
             rest_mode = 254;
             heat_state = 254;
+            cleanup_cycle = 254;
             target_temp = NAN;
             current_temp = NAN;
             reminder = 0;
@@ -28,6 +29,7 @@ class SpaState {
         uint8_t minutes:6;
         uint8_t rest_mode;
         uint8_t heat_state;
+        uint8_t cleanup_cycle;
         float target_temp;
         float current_temp;
         uint8_t reminder;
