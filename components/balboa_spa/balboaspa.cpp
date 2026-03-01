@@ -782,6 +782,24 @@ namespace esphome
                 spaState.light2 = spa_component_state;
             }
 
+            // 24: Flags Byte 19 - Cleanup Cycle (lower nibble)
+            // 0x0C = ON, 0x04/0x02/0x00 = OFF, other values = unknown
+            uint8_t cleanup_state = input_queue[24] & 0x0F;
+            uint8_t cleanup_cycle_value = 254;
+            if (cleanup_state == 0x0C)
+            {
+                cleanup_cycle_value = 1;
+            }
+            else if (cleanup_state == 0x04 || cleanup_state == 0x02 || cleanup_state == 0x00)
+            {
+                cleanup_cycle_value = 0;
+            }
+            if (cleanup_cycle_value != spaState.cleanup_cycle)
+            {
+                ESP_LOGD(TAG, "Spa/cleanup_cycle/state: %d (raw=0x%02X)", cleanup_cycle_value, cleanup_state);
+                spaState.cleanup_cycle = cleanup_cycle_value;
+            }
+
             // Parse reminder type from byte 6 of the status update (0x13 message)
             // 0x00=None, 0x04=Clean filter, 0x0A=Check pH, 0x09=Check sanitizer, 0x1E=Fault
             uint8_t reminder_value = input_queue[STATUS_UPDATE_REMINDER_BYTE];

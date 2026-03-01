@@ -138,6 +138,8 @@ binary_sensor:
       name: "Filter 1 Running"
     filter2_running:
       name: "Filter 2 Running"
+    cleanup_cycle:
+      name: "Cleanup Cycle"
 
 ## Binary Sensors
 
@@ -152,6 +154,7 @@ The binary sensor platform provides various spa status indicators:
 - **connected**: Indicates if the component is actively communicating with the spa
 - **filter1_running**: Indicates if filter 1 cycle is currently running
 - **filter2_running**: Indicates if filter 2 cycle is currently running
+- **cleanup_cycle**: Indicates if the cleanup cycle is currently active
 
 ### Filter Running Sensors
 
