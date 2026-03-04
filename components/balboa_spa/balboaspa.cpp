@@ -10,8 +10,9 @@ namespace esphome
 
         // Protocol byte indices for status update (0x13) message
         static const uint8_t STATUS_UPDATE_REMINDER_BYTE = 6;
-        static const uint8_t STATUS_UPDATE_TEMP_A_BYTE = 26;
-        static const uint8_t STATUS_UPDATE_TEMP_B_BYTE = 27;
+        static const uint8_t STATUS_UPDATE_TEMP_A_BYTE = 12;
+        static const uint8_t STATUS_UPDATE_TEMP_B_BYTE = 13;
+        static const uint8_t STATUS_UPDATE_SPA_STATE_BYTE = 5;
 
         void BalboaSpa::setup()
         {
@@ -843,14 +844,27 @@ namespace esphome
                 return temp_c;
             };
 
-            float temperature_a = convert_status_temp(input_queue[STATUS_UPDATE_TEMP_A_BYTE]);
+            // Protocol reference (status-update argument bytes):
+            //   byte 0 = spa state (0x14 indicates A/B temperatures active)
+            //   byte 7 = sensor A temp (or hold timer)
+            //   byte 8 = sensor B temp
+            // Frame index includes 5-byte protocol header, so args 7/8 map to 12/13.
+            const bool ab_temperatures_active = input_queue[STATUS_UPDATE_SPA_STATE_BYTE] == 0x14;
+
+            float temperature_a = NAN;
+            float temperature_b = NAN;
+            if (ab_temperatures_active)
+            {
+                temperature_a = convert_status_temp(input_queue[STATUS_UPDATE_TEMP_A_BYTE]);
+                temperature_b = convert_status_temp(input_queue[STATUS_UPDATE_TEMP_B_BYTE]);
+            }
+
             if (temperature_a != spaState.temperature_a)
             {
                 ESP_LOGD(TAG, "Spa/temperature_a/state: %.2f", temperature_a);
                 spaState.temperature_a = temperature_a;
             }
 
-            float temperature_b = convert_status_temp(input_queue[STATUS_UPDATE_TEMP_B_BYTE]);
             if (temperature_b != spaState.temperature_b)
             {
                 ESP_LOGD(TAG, "Spa/temperature_b/state: %.2f", temperature_b);

@@ -164,8 +164,8 @@ The binary sensor platform provides various spa status indicators:
 ### Additional Numeric Sensors
 
 The `sensor` platform also supports these status update temperature channels:
-- **temperature_a**: Raw temperature sensor A from the spa status update payload
-- **temperature_b**: Raw temperature sensor B from the spa status update payload
+- **temperature_a**: Sensor A temperature from status update (when A/B temperature mode is active)
+- **temperature_b**: Sensor B temperature from status update (when A/B temperature mode is active)
 
 ### Filter Running Sensors
 
