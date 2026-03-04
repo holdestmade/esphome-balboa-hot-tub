@@ -20,6 +20,8 @@ namespace esphome
         CIRCULATION = 3,
         RESTMODE = 4,
         HEATSTATE = 5,
+        TEMPERATURE_A = 6,
+        TEMPERATURE_B = 7,
       };
 
     public:
