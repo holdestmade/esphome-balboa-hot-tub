@@ -593,3 +593,93 @@ The text sensors display current spa status:
 - **spa_time**: Current spa time in HH:MM format
 - **filter1_config**: Current filter 1 configuration in JSON format
 - **filter2_config**: Current filter 2 configuration in JSON format (or "disabled")
+
+## Protocol Specification
+
+The Balboa spa uses a proprietary RS485 serial protocol at 115200 baud.
+
+### Frame Format
+
+```
+| Byte | Field       | Description                                          |
+|------|-------------|------------------------------------------------------|
+|  0   | SOF         | Start of frame: 0x7E                                 |
+|  1   | Length      | Number of bytes from [1] to CRC (inclusive)          |
+|  2   | Destination | Target address (client_id / 0xFF broadcast / 0xFE)   |
+|  3   | Subtype     | 0xBF = client→spa, 0xAF = spa→client                 |
+|  4   | Message type| See message type table below                         |
+| 5..N | Data        | Message-specific payload                             |
+| N+1  | CRC8        | Checksum over bytes [1]..[N]                         |
+| N+2  | EOF         | End of frame: 0x7E                                   |
+```
+
+### CRC8 Algorithm
+
+- **Polynomial**: x⁸ + x² + x + 1 (0x07)
+- **Initial value**: 0x02
+- **Final XOR**: 0x02
+- **Test vector**: `7E 05 FE BF 01 02 F1` → CRC = `0x73`
+
+### Message Types
+
+| Code | Direction     | Description                          |
+|------|---------------|--------------------------------------|
+| 0x00 | Spa→Client    | Any new clients? (broadcast)         |
+| 0x01 | Client→Spa    | New client request (ID request)      |
+| 0x02 | Spa→Client    | Client ID offer                      |
+| 0x03 | Client→Spa    | Client ID acknowledge                |
+| 0x06 | Spa→Client    | Clear to send (ready for command)    |
+| 0x07 | Client→Spa    | Nothing to send                      |
+| 0x11 | Client→Spa    | Toggle command                       |
+| 0x13 | Spa→Client    | Status update (broadcast)            |
+| 0x20 | Client→Spa    | Set temperature                      |
+| 0x21 | Client→Spa    | Set clock time                       |
+| 0x22 | Client→Spa    | Read configuration (request)         |
+| 0x23 | Bidirectional | Filter cycle configuration           |
+| 0x27 | Client→Spa    | Set preference                       |
+| 0x28 | Spa→Client    | Fault log entry                      |
+| 0x2E | Spa→Client    | Spa configuration response           |
+
+### Status Update (0x13) Payload Layout
+
+Payload bytes are relative to frame index 5 (first data byte):
+
+| Frame idx | Payload byte | Description                                    |
+|-----------|--------------|------------------------------------------------|
+|     5     |      0       | Spa operating state (0x14 = A/B temps active)  |
+|     6     |      1       | Reminder type (0x00/0x04/0x09/0x0A/0x1E)       |
+|     7     |      2       | Current water temperature (0xFF = unknown)      |
+|     8     |      3       | Current hour                                   |
+|     9     |      4       | Current minute                                 |
+|    10     |      5       | Rest/ready mode                                |
+|    12     |      7       | Sensor A temperature                           |
+|    13     |      8       | Sensor B temperature                           |
+|    15     |     10       | Heat state (bit 4) + high range (bit 2)        |
+|    16     |     11       | Jet states: jet1[1:0] jet2[3:2] jet3[5:4] jet4[7:6] |
+|    18     |     13       | Circulation (bit 1) + blower (bit 2)           |
+|    19     |     14       | Light 1 (bits 0-1 == 0x03) + light 2 (bits 2-3)|
+|    24     |     19       | Cleanup cycle (lower nibble: 0x0C=on, other=off)|
+|    25     |     20       | Target (set point) temperature                 |
+
+### Temperature Encoding
+
+- **Celsius mode**: raw value = temperature × 2 (e.g. 38°C → 0x4C)
+- **Fahrenheit mode**: raw value = temperature in °F (e.g. 100°F → 0x64)
+- **Unknown/unavailable**: 0xFF
+
+### Toggle Command Codes (used with message type 0x11)
+
+| Code | Action           |
+|------|------------------|
+| 0x03 | Clear reminder   |
+| 0x04 | Toggle jet 1     |
+| 0x05 | Toggle jet 2     |
+| 0x06 | Toggle jet 3     |
+| 0x07 | Toggle jet 4     |
+| 0x0C | Toggle blower    |
+| 0x11 | Toggle light 1   |
+| 0x12 | Toggle light 2   |
+| 0x50 | Toggle high range|
+| 0x51 | Toggle heat/rest |
+
+All protocol constants are defined in `components/balboa_spa/protocol_definitions.h`.

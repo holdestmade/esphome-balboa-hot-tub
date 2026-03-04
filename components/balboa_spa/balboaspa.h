@@ -8,9 +8,13 @@
 #include "spa_config.h"
 #include "spa_state.h"
 #include "CircularBuffer.h"
+#include "protocol_definitions.h"
+#include "bitfield_helpers.h"
+#include "message_builder.h"
+#include "buffer_utilities.h"
 #include <string>
-#include <iostream>
-#include <sstream>
+#include <vector>
+#include <cstdio>
 
 namespace esphome
 {
@@ -135,6 +139,16 @@ namespace esphome
 
       void read_serial();
       void update_sensors();
+
+      // Message dispatcher helpers (called from read_serial())
+      void handle_unregistered();
+      void handle_id_request();
+      void handle_id_acknowledge();
+      void handle_ready_to_send();
+      void handle_status_update();
+      void handle_config_response();
+      void handle_filter_settings_response();
+      void handle_fault_log_response();
 
       uint8_t crc8(CircularBuffer<uint8_t, 100> &data, bool ignore_delimiter);
       void ID_request();
