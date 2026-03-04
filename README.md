@@ -109,6 +109,10 @@ sensor:
       name: Rest Mode
     heatstate:
       name: Heat State
+    temperature_a:
+      name: Temperature A
+    temperature_b:
+      name: Temperature B
     # Fault log sensors (optional)
     fault_code:
       name: Fault Code
@@ -155,6 +159,13 @@ The binary sensor platform provides various spa status indicators:
 - **filter1_running**: Indicates if filter 1 cycle is currently running
 - **filter2_running**: Indicates if filter 2 cycle is currently running
 - **cleanup_cycle**: Indicates if the cleanup cycle is currently active
+
+
+### Additional Numeric Sensors
+
+The `sensor` platform also supports these status update temperature channels:
+- **temperature_a**: Sensor A temperature from status update (when A/B temperature mode is active)
+- **temperature_b**: Sensor B temperature from status update (when A/B temperature mode is active)
 
 ### Filter Running Sensors
 

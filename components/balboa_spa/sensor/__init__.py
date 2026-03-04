@@ -1,6 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
+from esphome.const import DEVICE_CLASS_TEMPERATURE, STATE_CLASS_MEASUREMENT, UNIT_CELSIUS
 
 from .. import (
     balboa_spa_ns,
@@ -21,6 +22,8 @@ CONF_HIGHRANGE = "highrange"
 CONF_CIRCULATION = "circulation"
 CONF_RESTMODE = "restmode"
 CONF_HEATSTATE = "heatstate"
+CONF_TEMPERATURE_A = "temperature_a"
+CONF_TEMPERATURE_B = "temperature_b"
 CONF_FAULT_CODE = "fault_code"
 CONF_FAULT_TOTAL_ENTRIES = "fault_total_entries"
 CONF_FAULT_CURRENT_ENTRY = "fault_current_entry"
@@ -44,6 +47,20 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_HEATSTATE): sensor.sensor_schema(
             SpaSensor,
         ),
+        cv.Optional(CONF_TEMPERATURE_A): sensor.sensor_schema(
+            SpaSensor,
+            unit_of_measurement=UNIT_CELSIUS,
+            accuracy_decimals=1,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_TEMPERATURE_B): sensor.sensor_schema(
+            SpaSensor,
+            unit_of_measurement=UNIT_CELSIUS,
+            accuracy_decimals=1,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
         cv.Optional(CONF_FAULT_CODE): sensor.sensor_schema(
             SpaFaultLogSensor,
         ),
@@ -61,7 +78,7 @@ CONFIG_SCHEMA = cv.Schema(
 async def to_code(config):
     parent = await cg.get_variable(config[CONF_SPA_ID])
 
-    for sensor_type in [CONF_BLOWER, CONF_HIGHRANGE, CONF_CIRCULATION, CONF_RESTMODE, CONF_HEATSTATE]:
+    for sensor_type in [CONF_BLOWER, CONF_HIGHRANGE, CONF_CIRCULATION, CONF_RESTMODE, CONF_HEATSTATE, CONF_TEMPERATURE_A, CONF_TEMPERATURE_B]:
         if conf := config.get(sensor_type):
             var = await sensor.new_sensor(conf)
             cg.add(var.set_parent(parent))
