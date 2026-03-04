@@ -1,6 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
+from esphome.const import DEVICE_CLASS_TEMPERATURE, STATE_CLASS_MEASUREMENT
 
 from .. import (
     balboa_spa_ns,
@@ -48,9 +49,13 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Optional(CONF_TEMPERATURE_A): sensor.sensor_schema(
             SpaSensor,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
         ),
         cv.Optional(CONF_TEMPERATURE_B): sensor.sensor_schema(
             SpaSensor,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
         ),
         cv.Optional(CONF_FAULT_CODE): sensor.sensor_schema(
             SpaFaultLogSensor,
