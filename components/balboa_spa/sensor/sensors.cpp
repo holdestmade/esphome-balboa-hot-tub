@@ -1,5 +1,6 @@
 #include "esphome/core/log.h"
 #include "sensors.h"
+#include <cmath>
 
 namespace esphome
 {
@@ -16,7 +17,7 @@ namespace esphome
 
         void BalboaSpaSensors::update(SpaState *spaState)
         {
-            uint8_t sensor_state_value;
+            float sensor_state_value;
 
             switch (sensor_type)
             {
@@ -42,6 +43,20 @@ namespace esphome
                 if (sensor_state_value == 254)
                 {
                     // no value
+                    return;
+                }
+                break;
+            case BalboaSpaSensorType::TEMPERATURE_A:
+                sensor_state_value = spaState->temperature_a;
+                if (std::isnan(sensor_state_value))
+                {
+                    return;
+                }
+                break;
+            case BalboaSpaSensorType::TEMPERATURE_B:
+                sensor_state_value = spaState->temperature_b;
+                if (std::isnan(sensor_state_value))
+                {
                     return;
                 }
                 break;
