@@ -10,6 +10,8 @@ namespace esphome
 
         // Protocol byte indices for status update (0x13) message
         static const uint8_t STATUS_UPDATE_REMINDER_BYTE = 6;
+        static const uint8_t STATUS_UPDATE_TEMP_A_BYTE = 26;
+        static const uint8_t STATUS_UPDATE_TEMP_B_BYTE = 27;
 
         void BalboaSpa::setup()
         {
@@ -807,6 +809,52 @@ namespace esphome
             {
                 ESP_LOGD(TAG, "Spa/reminder/state: 0x%02X", reminder_value);
                 spaState.reminder = reminder_value;
+            }
+
+            // Temperatures A and B from status update payload.
+            // These are reported in the spa protocol temperature scale.
+            auto convert_status_temp = [this](uint8_t raw_temp) -> float
+            {
+                if (raw_temp == 0xFF)
+                {
+                    return NAN;
+                }
+
+                float temp_c = NAN;
+                if (spa_temp_scale == TEMP_SCALE::C)
+                {
+                    temp_c = raw_temp / 2.0f;
+                }
+                else if (spa_temp_scale == TEMP_SCALE::F)
+                {
+                    temp_c = convert_f_to_c(raw_temp);
+                }
+
+                if (std::isnan(temp_c))
+                {
+                    return NAN;
+                }
+
+                if (esphome_temp_scale == TEMP_SCALE::F)
+                {
+                    return convert_c_to_f(temp_c);
+                }
+
+                return temp_c;
+            };
+
+            float temperature_a = convert_status_temp(input_queue[STATUS_UPDATE_TEMP_A_BYTE]);
+            if (temperature_a != spaState.temperature_a)
+            {
+                ESP_LOGD(TAG, "Spa/temperature_a/state: %.2f", temperature_a);
+                spaState.temperature_a = temperature_a;
+            }
+
+            float temperature_b = convert_status_temp(input_queue[STATUS_UPDATE_TEMP_B_BYTE]);
+            if (temperature_b != spaState.temperature_b)
+            {
+                ESP_LOGD(TAG, "Spa/temperature_b/state: %.2f", temperature_b);
+                spaState.temperature_b = temperature_b;
             }
 
             // TODO: callback on newState
