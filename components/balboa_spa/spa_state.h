@@ -14,6 +14,8 @@ class SpaState {
             cleanup_cycle = 254;
             target_temp = NAN;
             current_temp = NAN;
+            temperature_a = NAN;
+            temperature_b = NAN;
             reminder = 0;
         }
         uint8_t jet1 :2;
@@ -32,6 +34,8 @@ class SpaState {
         uint8_t cleanup_cycle;
         float target_temp;
         float current_temp;
+        float temperature_a;
+        float temperature_b;
         uint8_t reminder;
 };
 }  // namespace balboa_spa
