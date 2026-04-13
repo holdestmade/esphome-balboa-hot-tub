@@ -14,6 +14,7 @@ namespace esphome
             input_queue.clear();
             output_queue.clear();
             filtersettings_update_timer = 0;
+            last_received_time = millis(); // avoid spurious timeout on slow boot
         }
 
         void BalboaSpa::update()
@@ -45,12 +46,6 @@ namespace esphome
             while (available())
             {
                 read_serial();
-            }
-
-            // Run through listeners
-            for (const auto &listener : this->listeners_)
-            {
-                listener(&spaState);
             }
         }
 
@@ -97,7 +92,7 @@ namespace esphome
                 return;
             }
 
-            send_command = 0xff;
+            send_command = SEND_CMD_SET_TEMP;
         }
 
         void BalboaSpa::set_highrange(bool high)
@@ -142,7 +137,8 @@ namespace esphome
         {
             if (hour >= 0 && hour <= 23)
             {
-                target_hour = hour;
+                pending_time_hour = static_cast<uint8_t>(hour);
+                pending_time_minute = spaState.minutes; // preserve current minute
                 send_command = MSG_ID_SET_TIME;
             }
         }
@@ -151,7 +147,8 @@ namespace esphome
         {
             if (minute >= 0 && minute <= 59)
             {
-                target_minute = minute;
+                pending_time_minute = static_cast<uint8_t>(minute);
+                pending_time_hour = spaState.hour; // preserve current hour
                 send_command = MSG_ID_SET_TIME;
             }
         }
@@ -163,15 +160,29 @@ namespace esphome
             send_preference_code = PREFERENCE_TIMESCALE;
         }
 
+        void BalboaSpa::sync_filter_targets_from_settings()
+        {
+            target_filter1_start_hour        = spaFilterSettings.filter1_hour;
+            target_filter1_start_minute      = spaFilterSettings.filter1_minute;
+            target_filter1_duration_hour     = spaFilterSettings.filter1_duration_hour;
+            target_filter1_duration_minute   = spaFilterSettings.filter1_duration_minute;
+            target_filter2_enable            = spaFilterSettings.filter2_enable;
+            target_filter2_start_hour        = spaFilterSettings.filter2_hour;
+            target_filter2_start_minute      = spaFilterSettings.filter2_minute;
+            target_filter2_duration_hour     = spaFilterSettings.filter2_duration_hour;
+            target_filter2_duration_minute   = spaFilterSettings.filter2_duration_minute;
+        }
+
         void BalboaSpa::set_filter1_config(uint8_t start_hour, uint8_t start_minute, uint8_t duration_hour, uint8_t duration_minute)
         {
             if (start_hour < 24 && start_minute < 60 && duration_hour < 24 && duration_minute < 60)
             {
-                target_filter1_start_hour = start_hour;
-                target_filter1_start_minute = start_minute;
+                sync_filter_targets_from_settings();
+                target_filter1_start_hour    = start_hour;
+                target_filter1_start_minute  = start_minute;
                 target_filter1_duration_hour = duration_hour;
                 target_filter1_duration_minute = duration_minute;
-                send_command = MSG_ID_SET_FILTER;
+                send_command = MSG_ID_FILTER_CONFIG;
             }
         }
 
@@ -179,28 +190,31 @@ namespace esphome
         {
             if (start_hour < 24 && start_minute < 60 && duration_hour < 24 && duration_minute < 60)
             {
-                target_filter2_start_hour = start_hour;
-                target_filter2_start_minute = start_minute;
+                sync_filter_targets_from_settings();
+                target_filter2_start_hour    = start_hour;
+                target_filter2_start_minute  = start_minute;
                 target_filter2_duration_hour = duration_hour;
                 target_filter2_duration_minute = duration_minute;
-                target_filter2_enable = true;
-                send_command = MSG_ID_SET_FILTER;
+                target_filter2_enable        = true;
+                send_command = MSG_ID_FILTER_CONFIG;
             }
         }
 
         void BalboaSpa::disable_filter2()
         {
+            sync_filter_targets_from_settings();
             target_filter2_enable = false;
-            send_command = MSG_ID_SET_FILTER;
+            send_command = MSG_ID_FILTER_CONFIG;
         }
 
         void BalboaSpa::set_filter1_start_time(uint8_t hour, uint8_t minute)
         {
             if (hour < 24 && minute < 60)
             {
-                target_filter1_start_hour = hour;
+                sync_filter_targets_from_settings();
+                target_filter1_start_hour   = hour;
                 target_filter1_start_minute = minute;
-                send_command = MSG_ID_SET_FILTER;
+                send_command = MSG_ID_FILTER_CONFIG;
                 ESP_LOGI(TAG, "Filter 1 start time set to %02d:%02d", hour, minute);
             }
         }
@@ -209,9 +223,10 @@ namespace esphome
         {
             if (hour < 24 && minute < 60)
             {
-                target_filter1_duration_hour = hour;
+                sync_filter_targets_from_settings();
+                target_filter1_duration_hour   = hour;
                 target_filter1_duration_minute = minute;
-                send_command = MSG_ID_SET_FILTER;
+                send_command = MSG_ID_FILTER_CONFIG;
                 ESP_LOGI(TAG, "Filter 1 duration set to %02d:%02d", hour, minute);
             }
         }
@@ -220,10 +235,11 @@ namespace esphome
         {
             if (hour < 24 && minute < 60)
             {
-                target_filter2_start_hour = hour;
+                sync_filter_targets_from_settings();
+                target_filter2_start_hour   = hour;
                 target_filter2_start_minute = minute;
-                target_filter2_enable = true;
-                send_command = MSG_ID_SET_FILTER;
+                target_filter2_enable       = true;
+                send_command = MSG_ID_FILTER_CONFIG;
                 ESP_LOGI(TAG, "Filter 2 start time set to %02d:%02d", hour, minute);
             }
         }
@@ -232,10 +248,11 @@ namespace esphome
         {
             if (hour < 24 && minute < 60)
             {
-                target_filter2_duration_hour = hour;
+                sync_filter_targets_from_settings();
+                target_filter2_duration_hour   = hour;
                 target_filter2_duration_minute = minute;
-                target_filter2_enable = true;
-                send_command = MSG_ID_SET_FILTER;
+                target_filter2_enable          = true;
+                send_command = MSG_ID_FILTER_CONFIG;
                 ESP_LOGI(TAG, "Filter 2 duration set to %02d:%02d", hour, minute);
             }
         }
@@ -427,11 +444,10 @@ namespace esphome
             if (send_command == MSG_ID_SET_TIME)
             {
                 ProtocolMessageBuilder::build_set_time(output_queue, client_id,
-                                                       target_hour, target_minute);
+                                                       pending_time_hour, pending_time_minute);
             }
-            else if (send_command == 0xff)
+            else if (send_command == SEND_CMD_SET_TEMP)
             {
-                // 0xff marks a pending temperature set
                 ProtocolMessageBuilder::build_set_temp(output_queue, client_id, target_temperature);
             }
             else if (send_command == 0x00)
@@ -454,11 +470,11 @@ namespace esphome
                                                                  CONFIG_SUB_FAULT_B3);
                     faultlog_request_status = 1;
                     ESP_LOGD(TAG, "Spa/debug/faultlog_request_status: %s",
-                             "requesting fault log, #1");
+                             "requesting fault log");
                 }
-                else if (filtersettings_request_status == 0 &&
-                         (faultlog_request_status == 2 || faultlog_request_status == 0))
+                else if (filtersettings_request_status == 0 && faultlog_request_status == 2)
                 {
+                    // Only request filter settings after the fault log has been received
                     ProtocolMessageBuilder::build_config_request(output_queue, client_id,
                                                                  CONFIG_SUB_FILTER_B1,
                                                                  CONFIG_SUB_FILTER_B2,
@@ -478,7 +494,7 @@ namespace esphome
                                                              send_preference_code,
                                                              send_preference_data);
             }
-            else if (send_command == MSG_ID_SET_FILTER)
+            else if (send_command == MSG_ID_FILTER_CONFIG)
             {
                 ProtocolMessageBuilder::build_filter_config(output_queue, client_id,
                                                             target_filter1_start_hour,
@@ -519,7 +535,7 @@ namespace esphome
         {
             if (!buffer_has_minimum_size(input_queue, FILTER_IDX_F2_DUR_MIN + 1, "filter settings"))
                 return;
-            ESP_LOGD(TAG, "Spa/debug/faultlog_request_status: %s", "decoding filter settings");
+            ESP_LOGD(TAG, "Spa/debug/filtersettings_request_status: %s", "decoding filter settings");
             decodeFilterSettings();
         }
 
@@ -704,7 +720,7 @@ namespace esphome
                     temp_read = convert_f_to_c(input_queue[STATUS_IDX_CURRENT_TEMP]);
                 }
 
-                if (temp_read > 80)
+                if (temp_read > ESPHOME_BALBOASPA_MAX_VALID_TEMP_C)
                 {
                     // Temperature approaching boiling — definitely invalid
                     ESP_LOGW(TAG, "Spa/temperature/current INVALID %.2f %.2f %d",
@@ -730,12 +746,14 @@ namespace esphome
             }
 
             // Decode clock from STATUS_IDX_HOUR and STATUS_IDX_MINUTE
-            target_hour = input_queue[STATUS_IDX_HOUR];
-            target_minute = input_queue[STATUS_IDX_MINUTE];
-            if (target_hour != spaState.hour || target_minute != spaState.minutes)
             {
-                spaState.hour = target_hour;
-                spaState.minutes = target_minute;
+                uint8_t new_hour   = input_queue[STATUS_IDX_HOUR];
+                uint8_t new_minute = input_queue[STATUS_IDX_MINUTE];
+                if (new_hour != spaState.hour || new_minute != spaState.minutes)
+                {
+                    spaState.hour    = new_hour;
+                    spaState.minutes = new_minute;
+                }
             }
 
             spaState.rest_mode = input_queue[STATUS_IDX_REST_MODE];
@@ -872,6 +890,12 @@ namespace esphome
             }
 
             last_state_crc = input_queue[input_queue[PROTO_IDX_LENGTH]];
+
+            // Notify all state listeners now that spaState is fully updated
+            for (const auto &listener : this->listeners_)
+            {
+                listener(&spaState);
+            }
         }
 
         void BalboaSpa::decodeFilterSettings()
@@ -887,28 +911,34 @@ namespace esphome
             spaFilterSettings.filter2_duration_hour = input_queue[FILTER_IDX_F2_DUR_HOUR];
             spaFilterSettings.filter2_duration_minute = input_queue[FILTER_IDX_F2_DUR_MIN];
 
-            // Filter 1 time conversion
-            static PROGMEM const char *format_string = R"({"start":"%.2i:%.2i","duration":"%.2i:%.2i"} )";
-            const auto payload_length = std::snprintf(nullptr, 0, format_string, spaFilterSettings.filter1_hour, spaFilterSettings.filter1_minute, spaFilterSettings.filter1_duration_hour, spaFilterSettings.filter1_duration_minute);
-
-            char filter_payload[payload_length + 1];
-            std::memset(filter_payload, 0, payload_length + 1);
-            std::snprintf(filter_payload, payload_length + 1, format_string, spaFilterSettings.filter1_hour, spaFilterSettings.filter1_minute, spaFilterSettings.filter1_duration_hour, spaFilterSettings.filter1_duration_minute);
-            ESP_LOGD(TAG, "Spa/filter1/state: %s", filter_payload);
+            // Filter 1 time conversion — use a fixed format string with %02d (standard, portable)
+            static const char *format_string = R"({"start":"%02d:%02d","duration":"%02d:%02d"})";
+            {
+                int len = std::snprintf(nullptr, 0, format_string,
+                                        spaFilterSettings.filter1_hour, spaFilterSettings.filter1_minute,
+                                        spaFilterSettings.filter1_duration_hour, spaFilterSettings.filter1_duration_minute);
+                std::string filter_payload(len + 1, '\0');
+                std::snprintf(&filter_payload[0], len + 1, format_string,
+                              spaFilterSettings.filter1_hour, spaFilterSettings.filter1_minute,
+                              spaFilterSettings.filter1_duration_hour, spaFilterSettings.filter1_duration_minute);
+                ESP_LOGD(TAG, "Spa/filter1/state: %s", filter_payload.c_str());
+            }
 
             // Filter 2 time conversion
             ESP_LOGD(TAG, "Spa/filter2_enabled/state: %s", spaFilterSettings.filter2_enable == 1 ? STRON : STROFF);
-            std::snprintf(filter_payload, payload_length + 1, format_string, spaFilterSettings.filter2_hour, spaFilterSettings.filter2_minute, spaFilterSettings.filter2_duration_hour, spaFilterSettings.filter2_duration_minute);
-            ESP_LOGD(TAG, "Spa/filter2/state: %s", filter_payload);
+            {
+                int len = std::snprintf(nullptr, 0, format_string,
+                                        spaFilterSettings.filter2_hour, spaFilterSettings.filter2_minute,
+                                        spaFilterSettings.filter2_duration_hour, spaFilterSettings.filter2_duration_minute);
+                std::string filter_payload(len + 1, '\0');
+                std::snprintf(&filter_payload[0], len + 1, format_string,
+                              spaFilterSettings.filter2_hour, spaFilterSettings.filter2_minute,
+                              spaFilterSettings.filter2_duration_hour, spaFilterSettings.filter2_duration_minute);
+                ESP_LOGD(TAG, "Spa/filter2/state: %s", filter_payload.c_str());
+            }
 
             filtersettings_request_status = 2;
             filtersettings_update_timer = 0; // Reset timer after successful decode
-
-            // Notify listeners about filter settings update
-            for (const auto &listener : this->listeners_)
-            {
-                listener(&spaState);
-            }
 
             // Notify filter listeners about filter settings update
             for (const auto &filter_listener : this->filter_listeners_)
@@ -922,84 +952,56 @@ namespace esphome
 
         void BalboaSpa::decodeFault()
         {
+            // Lookup table mapping fault codes to human-readable messages.
+            // Easier to extend than a switch/case — just add a row.
+            struct FaultEntry { uint8_t code; const char *message; };
+            static const FaultEntry FAULT_TABLE[] = {
+                {15, "Sensors are out of sync"},
+                {16, "The water flow is low"},
+                {17, "The water flow has failed"},
+                {18, "The settings have been reset"},
+                {19, "Priming Mode"},
+                {20, "The clock has failed"},
+                {21, "The settings have been reset"},
+                {22, "Program memory failure"},
+                {26, "Sensors are out of sync -- Call for service"},
+                {27, "The heater is dry"},
+                {28, "The heater may be dry"},
+                {29, "The water is too hot"},
+                {30, "The heater is too hot"},
+                {31, "Sensor A Fault"},
+                {32, "Sensor B Fault"},
+                {34, "A pump may be stuck on"},
+                {35, "Hot fault"},
+                {36, "The GFCI test failed"},
+                {37, "Standby Mode (Hold Mode)"},
+            };
+
             spaFaultLog.total_entries = input_queue[FAULT_IDX_TOTAL_ENTRIES];
             spaFaultLog.current_entry = input_queue[FAULT_IDX_CURRENT_ENTRY];
-            spaFaultLog.fault_code = input_queue[FAULT_IDX_FAULT_CODE];
-            switch (spaFaultLog.fault_code)
-            { // this is a inelegant way to do it, a lookup table would be better
-            case 15:
-                spaFaultLog.fault_message = "Sensors are out of sync";
-                break;
-            case 16:
-                spaFaultLog.fault_message = "The water flow is low";
-                break;
-            case 17:
-                spaFaultLog.fault_message = "The water flow has failed";
-                break;
-            case 18:
-                spaFaultLog.fault_message = "The settings have been reset";
-                break;
-            case 19:
-                spaFaultLog.fault_message = "Priming Mode";
-                break;
-            case 20:
-                spaFaultLog.fault_message = "The clock has failed";
-                break;
-            case 21:
-                spaFaultLog.fault_message = "The settings have been reset";
-                break;
-            case 22:
-                spaFaultLog.fault_message = "Program memory failure";
-                break;
-            case 26:
-                spaFaultLog.fault_message = "Sensors are out of sync -- Call for service";
-                break;
-            case 27:
-                spaFaultLog.fault_message = "The heater is dry";
-                break;
-            case 28:
-                spaFaultLog.fault_message = "The heater may be dry";
-                break;
-            case 29:
-                spaFaultLog.fault_message = "The water is too hot";
-                break;
-            case 30:
-                spaFaultLog.fault_message = "The heater is too hot";
-                break;
-            case 31:
-                spaFaultLog.fault_message = "Sensor A Fault";
-                break;
-            case 32:
-                spaFaultLog.fault_message = "Sensor B Fault";
-                break;
-            case 34:
-                spaFaultLog.fault_message = "A pump may be stuck on";
-                break;
-            case 35:
-                spaFaultLog.fault_message = "Hot fault";
-                break;
-            case 36:
-                spaFaultLog.fault_message = "The GFCI test failed";
-                break;
-            case 37:
-                spaFaultLog.fault_message = "Standby Mode (Hold Mode)";
-                break;
-            default:
-                spaFaultLog.fault_message = "Unknown error";
-                break;
+            spaFaultLog.fault_code    = input_queue[FAULT_IDX_FAULT_CODE];
+
+            spaFaultLog.fault_message = "Unknown error";
+            for (const auto &entry : FAULT_TABLE)
+            {
+                if (entry.code == spaFaultLog.fault_code)
+                {
+                    spaFaultLog.fault_message = entry.message;
+                    break;
+                }
             }
+
             spaFaultLog.days_ago = input_queue[FAULT_IDX_DAYS_AGO];
-            spaFaultLog.hour = input_queue[FAULT_IDX_HOUR];
-            spaFaultLog.minutes = input_queue[FAULT_IDX_MINUTES];
+            spaFaultLog.hour     = input_queue[FAULT_IDX_HOUR];
+            spaFaultLog.minutes  = input_queue[FAULT_IDX_MINUTES];
             ESP_LOGD(TAG, "Spa/fault/Entries: %d", spaFaultLog.total_entries);
-            ESP_LOGD(TAG, "Spa/fault/Entry: %d", spaFaultLog.current_entry);
-            ESP_LOGD(TAG, "Spa/fault/Code: %d", spaFaultLog.fault_code);
+            ESP_LOGD(TAG, "Spa/fault/Entry: %d",   spaFaultLog.current_entry);
+            ESP_LOGD(TAG, "Spa/fault/Code: %d",    spaFaultLog.fault_code);
             ESP_LOGD(TAG, "Spa/fault/Message: %s", spaFaultLog.fault_message.c_str());
             ESP_LOGD(TAG, "Spa/fault/DaysAgo: %d", spaFaultLog.days_ago);
-            ESP_LOGD(TAG, "Spa/fault/Hours: %d", spaFaultLog.hour);
+            ESP_LOGD(TAG, "Spa/fault/Hours: %d",   spaFaultLog.hour);
             ESP_LOGD(TAG, "Spa/fault/Minutes: %d", spaFaultLog.minutes);
             faultlog_request_status = 2;
-            // ESP_LOGD(TAG, "Spa/debug/faultlog_request_status: have the faultlog, #2");
 
             // Notify fault log listeners
             for (const auto &listener : this->fault_log_listeners_)

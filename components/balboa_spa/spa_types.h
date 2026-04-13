@@ -14,7 +14,7 @@ namespace esphome
             uint8_t current_entry : 5;
             uint8_t fault_code : 6;
             std::string fault_message;
-            uint8_t days_ago : 8;
+            uint8_t days_ago;
             uint8_t hour : 5;
             uint8_t minutes : 6;
         };

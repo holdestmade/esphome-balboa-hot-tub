@@ -24,7 +24,7 @@ namespace esphome
             uint8_t mister : 1;
             uint8_t aux1 : 1;
             uint8_t aux2 : 1;
-            uint8_t temperature_scale : 1; // 1 -> Farenheit, 0-> Celcius
+            uint8_t temperature_scale : 1; // 0=Fahrenheit, 1=Celsius (matches TEMP_SCALE enum)
             uint8_t clock_mode : 1;        // 0 -> 12h, 1-> 24h
         };
 
