@@ -30,35 +30,6 @@ namespace esphome
             return traits;
         }
 
-        void BalboaSpaWaterHeater::setup()
-        {
-            WaterHeater::setup();
-
-            // Restore the last mode so HA never sees this entity as unavailable
-            // (with device_id set, HA requires at least one publish_state() to
-            //  consider the entity available; the spa listener may not fire for
-            //  several seconds after boot).
-            auto call = this->restore_state();
-            if (call.has_value() && call->get_mode().has_value())
-            {
-                this->mode_ = *call->get_mode();
-                if (this->mode_ == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
-                    this->mode_ == water_heater::WATER_HEATER_MODE_ELECTRIC ||
-                    this->mode_ == water_heater::WATER_HEATER_MODE_PERFORMANCE)
-                {
-                    this->preferred_highrange_mode = this->mode_;
-                }
-                float saved_temp = call->get_target_temperature();
-                if (!std::isnan(saved_temp))
-                    this->target_temperature_ = saved_temp;
-            }
-            else
-            {
-                this->mode_ = water_heater::WATER_HEATER_MODE_OFF;
-            }
-            this->publish_state();
-        }
-
         void BalboaSpaWaterHeater::control(const water_heater::WaterHeaterCall &call)
         {
             float target_temp = call.get_target_temperature();
@@ -138,6 +109,32 @@ namespace esphome
         void BalboaSpaWaterHeater::set_parent(BalboaSpa *parent)
         {
             spa = parent;
+
+            // Restore the last mode so HA never sees this entity as unavailable
+            // on startup (HA requires at least one publish_state() to consider
+            // the entity available; the spa listener may not fire for several
+            // seconds after boot).
+            // WaterHeater::setup() does not exist in this ESPHome version, so
+            // we handle restoration here using the restore_state_ field directly.
+            if (this->restore_state_.has_value() && this->restore_state_->get_mode().has_value())
+            {
+                this->mode_ = *this->restore_state_->get_mode();
+                if (this->mode_ == water_heater::WATER_HEATER_MODE_HEAT_PUMP ||
+                    this->mode_ == water_heater::WATER_HEATER_MODE_ELECTRIC ||
+                    this->mode_ == water_heater::WATER_HEATER_MODE_PERFORMANCE)
+                {
+                    this->preferred_highrange_mode = this->mode_;
+                }
+                float saved_temp = this->restore_state_->get_target_temperature();
+                if (!std::isnan(saved_temp))
+                    this->target_temperature_ = saved_temp;
+            }
+            else
+            {
+                this->mode_ = water_heater::WATER_HEATER_MODE_OFF;
+            }
+            this->publish_state();
+
             parent->register_listener([this](SpaState *spaState)
                                       { this->update(spaState); });
         }

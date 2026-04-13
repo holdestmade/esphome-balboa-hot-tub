@@ -25,7 +25,6 @@ namespace esphome
         preferred_highrange_mode = water_heater::WATER_HEATER_MODE_PERFORMANCE;
       };
 
-      void setup() override;
       void update(SpaState *spaState);
       void set_parent(BalboaSpa *parent);
 
