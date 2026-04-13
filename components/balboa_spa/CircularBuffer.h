@@ -60,7 +60,7 @@ namespace esphome
 
             bool push(T val)
             {
-                if (this->max_size < this->backingQue.size())
+                if (this->backingQue.size() >= this->max_size)
                 {
                     this->backingQue.pop_front();
                     this->backingQue.push_back(val);

@@ -21,10 +21,6 @@ namespace esphome
   namespace balboa_spa
   {
 
-// Not defined in recent framework libs so stealing from
-// https://github.com/espressif/arduino-esp32/blob/496b8411773243e1ad88a68652d6982ba2366d6b/cores/esp32/Arduino.h#L99
-#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
-
     static const uint8_t ESPHOME_BALBOASPA_MIN_TEMPERATURE_C = 7;
     static const uint8_t ESPHOME_BALBOASPA_MAX_TEMPERATURE_C = 40;
     static const uint8_t ESPHOME_BALBOASPA_MIN_TEMPERATURE_F = 60;
@@ -32,8 +28,14 @@ namespace esphome
 
     static const float ESPHOME_BALBOASPA_POLLING_INTERVAL = 50; // frequency to poll uart device
 
-#define STRON "ON"
-#define STROFF "OFF"
+    static constexpr const char *STRON = "ON";
+    static constexpr const char *STROFF = "OFF";
+
+    // Maximum valid temperature for sanity-checking decoded readings (°C).
+    static constexpr float ESPHOME_BALBOASPA_MAX_VALID_TEMP_C = 80.0f;
+
+    // Internal sentinel: send_command value meaning "set temperature pending".
+    static constexpr uint8_t SEND_CMD_SET_TEMP = 0xFE;
 
     enum TEMP_SCALE : uint8_t
     {
@@ -99,8 +101,8 @@ namespace esphome
       uint8_t last_state_crc = 0x00;
       uint8_t send_command = 0x00;
       uint8_t target_temperature = 0x00;
-      uint8_t target_hour = 0x00;
-      uint8_t target_minute = 0x00;
+      uint8_t pending_time_hour = 0x00;   // hour for the next SET_TIME command
+      uint8_t pending_time_minute = 0x00; // minute for the next SET_TIME command
       uint8_t target_filter1_start_hour = 0x00;
       uint8_t target_filter1_start_minute = 0x00;
       uint8_t target_filter1_duration_hour = 0x00;
@@ -113,7 +115,7 @@ namespace esphome
       uint8_t client_id = 0x00;
       uint8_t client_id_override = 0x00;
       bool use_client_id_override = false;
-      uint32_t last_received_time = 0;
+      uint32_t last_received_time = 0; // initialised to millis() in setup()
       uint8_t send_preference_code = 0;
       uint8_t send_preference_data = 0;
 
@@ -138,7 +140,6 @@ namespace esphome
       SpaFilterSettings spaFilterSettings;
 
       void read_serial();
-      void update_sensors();
 
       // Message dispatcher helpers (called from read_serial())
       void handle_unregistered();
@@ -159,7 +160,11 @@ namespace esphome
       void decodeState();
       void decodeFilterSettings();
       void decodeFault();
+
+      // Populate all target_filter* fields from the last-known spaFilterSettings so
+      // that partial-update setters don't accidentally zero out unrelated fields.
+      void sync_filter_targets_from_settings();
     };
 
-  } // namespace empty_uart_component
+  } // namespace balboa_spa
 } // namespace esphome

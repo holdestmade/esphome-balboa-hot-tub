@@ -54,7 +54,6 @@ namespace esphome
         static const uint8_t MSG_ID_SET_TIME = 0x21;        // Set time
         static const uint8_t MSG_ID_READ_CONFIG = 0x22;     // Read configuration (request)
         static const uint8_t MSG_ID_FILTER_CONFIG = 0x23;   // Filter configuration (set or response)
-        static const uint8_t MSG_ID_SET_FILTER = 0x23;      // Alias: Set filter configuration
         static const uint8_t MSG_ID_SET_PREFERENCE = 0x27;  // Set spa preference
         static const uint8_t MSG_ID_FAULT_LOG = 0x28;       // Fault log response
         static const uint8_t MSG_ID_CONFIG_RESPONSE = 0x2E; // Configuration response
