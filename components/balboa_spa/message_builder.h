@@ -120,7 +120,7 @@ namespace esphome
             {
                 queue.push(client_id);
                 queue.push(PROTO_SUBTYPE_FROM_CLIENT);
-                queue.push(MSG_ID_SET_FILTER);
+                queue.push(MSG_ID_FILTER_CONFIG);
                 queue.push(f1_start_hour);
                 queue.push(f1_start_min);
                 queue.push(f1_dur_hour);
