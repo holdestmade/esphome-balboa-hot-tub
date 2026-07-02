@@ -23,7 +23,6 @@ namespace esphome
     private:
       BalboaSpa *parent_;
       bool updating_from_spa_ = false;
-      bool validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute);
     };
 
     class SpaFilter1StartTimeText : public text::Text
@@ -38,7 +37,6 @@ namespace esphome
       
     private:
       BalboaSpa *parent_;
-      bool validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute);
     };
 
     class SpaFilter1DurationText : public text::Text
@@ -53,7 +51,6 @@ namespace esphome
       
     private:
       BalboaSpa *parent_;
-      bool validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute);
     };
 
     class SpaFilter2StartTimeText : public text::Text
@@ -68,7 +65,6 @@ namespace esphome
       
     private:
       BalboaSpa *parent_;
-      bool validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute);
     };
 
     class SpaFilter2DurationText : public text::Text
@@ -83,7 +79,6 @@ namespace esphome
       
     private:
       BalboaSpa *parent_;
-      bool validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute);
     };
 
   } // namespace balboa_spa

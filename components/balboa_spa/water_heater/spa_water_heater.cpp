@@ -1,6 +1,7 @@
-#include "esphome.h"
-#include "esphome/core/log.h"
 #include "spa_water_heater.h"
+#include "esphome/core/log.h"
+#include "esphome/core/hal.h"
+#include <cmath>
 
 namespace esphome
 {
@@ -190,7 +191,8 @@ namespace esphome
                 }
             }
 
-            if (needs_update || this->last_update_time + 300000 < millis())
+            // Publish at least every 5 minutes (subtraction is rollover-safe)
+            if (needs_update || millis() - this->last_update_time >= 300000)
             {
                 this->publish_state();
                 this->last_update_time = millis();

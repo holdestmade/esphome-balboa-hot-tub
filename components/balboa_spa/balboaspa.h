@@ -21,21 +21,30 @@ namespace esphome
   namespace balboa_spa
   {
 
-    static const uint8_t ESPHOME_BALBOASPA_MIN_TEMPERATURE_C = 7;
-    static const uint8_t ESPHOME_BALBOASPA_MAX_TEMPERATURE_C = 40;
-    static const uint8_t ESPHOME_BALBOASPA_MIN_TEMPERATURE_F = 60;
-    static const uint8_t ESPHOME_BALBOASPA_MAX_TEMPERATURE_F = 104;
+    inline constexpr uint8_t ESPHOME_BALBOASPA_MIN_TEMPERATURE_C = 7;
+    inline constexpr uint8_t ESPHOME_BALBOASPA_MAX_TEMPERATURE_C = 40;
+    inline constexpr uint8_t ESPHOME_BALBOASPA_MIN_TEMPERATURE_F = 60;
+    inline constexpr uint8_t ESPHOME_BALBOASPA_MAX_TEMPERATURE_F = 104;
 
-    static const float ESPHOME_BALBOASPA_POLLING_INTERVAL = 50; // frequency to poll uart device
+    // update() only runs housekeeping (communication watchdog, periodic filter
+    // settings refresh); serial data is consumed in loop().
+    inline constexpr uint32_t ESPHOME_BALBOASPA_POLLING_INTERVAL = 1000; // ms
 
-    static constexpr const char *STRON = "ON";
-    static constexpr const char *STROFF = "OFF";
+    // Mark the spa as disconnected when no bytes arrive for this long.
+    inline constexpr uint32_t COMMUNICATION_TIMEOUT_MS = 10000;
+
+    // How often to re-request the filter settings.
+    inline constexpr uint32_t FILTER_SETTINGS_REFRESH_MS = 5 * 60 * 1000;
+
+    inline constexpr const char *STRON = "ON";
+    inline constexpr const char *STROFF = "OFF";
 
     // Maximum valid temperature for sanity-checking decoded readings (°C).
-    static constexpr float ESPHOME_BALBOASPA_MAX_VALID_TEMP_C = 80.0f;
+    inline constexpr float ESPHOME_BALBOASPA_MAX_VALID_TEMP_C = 80.0f;
 
-    // Internal sentinel: send_command value meaning "set temperature pending".
-    static constexpr uint8_t SEND_CMD_SET_TEMP = 0xFE;
+    // Internal sentinel: command value meaning "set temperature pending".
+    // Must not collide with any MSG_ID_* or TOGGLE_* code.
+    inline constexpr uint8_t SEND_CMD_SET_TEMP = 0xFE;
 
     enum TEMP_SCALE : uint8_t
     {
@@ -50,6 +59,7 @@ namespace esphome
       BalboaSpa() : PollingComponent(ESPHOME_BALBOASPA_POLLING_INTERVAL) {}
       void setup() override;
       void update() override;
+      void loop() override;
       float get_setup_priority() const override;
 
       SpaConfig get_current_config();
@@ -58,6 +68,7 @@ namespace esphome
       SpaFaultLog *get_current_fault_log();
 
       void set_temp(float temp);
+      void set_time(int hour, int minute);
       void set_hour(int hour);
       void set_minute(int minute);
       void set_timescale(bool is_24h);
@@ -81,6 +92,7 @@ namespace esphome
       void set_spa_temp_scale(TEMP_SCALE scale);
       void set_esphome_temp_scale(TEMP_SCALE scale);
       void set_client_id(uint8_t id);
+      TEMP_SCALE get_esphome_temp_scale() const { return esphome_temp_scale; }
 
       bool is_communicating();
 
@@ -95,14 +107,29 @@ namespace esphome
       void request_fault_log_update();
 
     private:
+      // Outbound command waiting for a Clear-To-Send slot.
+      // `command` is a MSG_ID_* value, a TOGGLE_* item code, or SEND_CMD_SET_TEMP.
+      struct PendingCommand
+      {
+        uint8_t command;
+        uint8_t data1;
+        uint8_t data2;
+      };
+      static constexpr size_t COMMAND_QUEUE_CAPACITY = 8;
+
       CircularBuffer<uint8_t, 100> input_queue;
       CircularBuffer<uint8_t, 100> output_queue;
-      uint8_t received_byte, loop_index, temp_index;
-      uint8_t last_state_crc = 0x00;
-      uint8_t send_command = 0x00;
-      uint8_t target_temperature = 0x00;
-      uint8_t pending_time_hour = 0x00;   // hour for the next SET_TIME command
-      uint8_t pending_time_minute = 0x00; // minute for the next SET_TIME command
+
+      PendingCommand command_queue_[COMMAND_QUEUE_CAPACITY];
+      size_t command_queue_head_ = 0;
+      size_t command_queue_count_ = 0;
+
+      // Last seen CRC per message type, used to skip decoding unchanged messages.
+      uint8_t last_status_crc_ = 0x00;
+      uint8_t last_config_crc_ = 0x00;
+      uint8_t last_filter_crc_ = 0x00;
+      uint8_t last_fault_crc_ = 0x00;
+
       uint8_t target_filter1_start_hour = 0x00;
       uint8_t target_filter1_start_minute = 0x00;
       uint8_t target_filter1_duration_hour = 0x00;
@@ -116,28 +143,36 @@ namespace esphome
       uint8_t client_id_override = 0x00;
       bool use_client_id_override = false;
       uint32_t last_received_time = 0; // initialised to millis() in setup()
-      uint8_t send_preference_code = 0;
-      uint8_t send_preference_data = 0;
 
       TEMP_SCALE spa_temp_scale = TEMP_SCALE::UNDEFINED;
       TEMP_SCALE esphome_temp_scale = TEMP_SCALE::C;
-      float convert_c_to_f(float c);
-      float convert_f_to_c(float f);
+      static float convert_c_to_f(float c);
+      static float convert_f_to_c(float f);
 
       std::vector<std::function<void(SpaState *)>> listeners_;
       std::vector<std::function<void(SpaFilterSettings *)>> filter_listeners_;
       std::vector<std::function<void(SpaFaultLog *)>> fault_log_listeners_;
 
-      char config_request_status = 0;         // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> further processed it
-      char faultlog_request_status = 0;       // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> further processed it
-      char filtersettings_request_status = 0; // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> further processed it
-      char faultlog_update_timer = 0;         // temp logic so we only get the fault log once per 5 minutes
-      uint16_t filtersettings_update_timer = 0;   // timer for periodic filter settings requests (every 5 minutes)
+      enum class RequestStatus : uint8_t
+      {
+        WANTED = 0,    // should be requested at the next opportunity
+        REQUESTED = 1, // request has been sent, waiting for the response
+        RECEIVED = 2   // response has been decoded
+      };
+      RequestStatus config_request_status = RequestStatus::WANTED;
+      RequestStatus faultlog_request_status = RequestStatus::WANTED;
+      RequestStatus filtersettings_request_status = RequestStatus::WANTED;
+      uint32_t filtersettings_received_time = 0; // for the periodic refresh
 
       SpaConfig spaConfig;
       SpaState spaState;
       SpaFaultLog spaFaultLog;
       SpaFilterSettings spaFilterSettings;
+
+      // Command queue helpers
+      bool enqueue_command(uint8_t command, uint8_t data1 = 0, uint8_t data2 = 0);
+      bool dequeue_command(PendingCommand &cmd);
+      PendingCommand *find_queued_command(uint8_t command);
 
       void read_serial();
 
@@ -151,11 +186,14 @@ namespace esphome
       void handle_filter_settings_response();
       void handle_fault_log_response();
 
-      uint8_t crc8(CircularBuffer<uint8_t, 100> &data, bool ignore_delimiter);
+      // CRC byte of the frame currently held in input_queue.
+      uint8_t packet_crc() const { return input_queue[input_queue[PROTO_IDX_LENGTH]]; }
+
+      uint8_t crc8(const CircularBuffer<uint8_t, 100> &data, bool ignore_delimiter);
       void ID_request();
       void ID_ack();
       void rs485_send();
-      void print_msg(CircularBuffer<uint8_t, 100> &data);
+      void print_msg(const CircularBuffer<uint8_t, 100> &data);
       void decodeSettings();
       void decodeState();
       void decodeFilterSettings();

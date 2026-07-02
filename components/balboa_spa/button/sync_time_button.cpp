@@ -19,18 +19,17 @@ namespace esphome
 
             // Use the current system time (epoch time converted to local time)
             time_t now_timestamp = time(nullptr);
-            struct tm *time_info = localtime(&now_timestamp);
+            struct tm time_info;
 
-            if (time_info == nullptr || now_timestamp < 1000000000) // Basic validity check
+            if (now_timestamp < 1000000000 || localtime_r(&now_timestamp, &time_info) == nullptr) // Basic validity check
             {
                 ESP_LOGW(TAG, "System time not valid yet");
                 return;
             }
 
-            // Set the spa time
-            parent_->set_hour(time_info->tm_hour);
-            parent_->set_minute(time_info->tm_min);
-            ESP_LOGI(TAG, "Spa time sync triggered: %02d:%02d", time_info->tm_hour, time_info->tm_min);
+            // Set the spa time (hour and minute applied atomically)
+            parent_->set_time(time_info.tm_hour, time_info.tm_min);
+            ESP_LOGI(TAG, "Spa time sync triggered: %02d:%02d", time_info.tm_hour, time_info.tm_min);
             
             // Request spa settings update to refresh the display
             parent_->request_config_update();

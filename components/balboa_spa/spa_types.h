@@ -41,12 +41,6 @@ namespace esphome
             DONT_KNOW
         };
 
-        static const char *TOGGLE_STATE_MAYBE_STRINGS[] = {
-            "OFF",
-            "ON",
-            "HIGH",
-            "DONT_KNOW"};
-
         // Heat state values reported in the status update message.
         enum HeatState : uint8_t
         {
@@ -59,11 +53,37 @@ namespace esphome
         enum ReminderType : uint8_t
         {
             REMINDER_TYPE_NONE = 0x00,
+            REMINDER_TYPE_CLEAN_FILTER_ALT = 0x03, // observed on some firmwares
             REMINDER_TYPE_CLEAN_FILTER = 0x04,
             REMINDER_TYPE_CHECK_SANITIZER = 0x09,
             REMINDER_TYPE_CHECK_PH = 0x0A,
             REMINDER_TYPE_FAULT = 0x1E
         };
+
+        // Map a reminder code to a human-readable name.
+        // Returns nullptr for unknown codes so callers can format them as needed.
+        // NOTE: This list is incomplete. If you encounter an unknown code, please
+        // open a GitHub issue with the code value and the reminder message shown
+        // on your spa control panel so we can expand this mapping.
+        inline const char *reminder_type_to_string(uint8_t code)
+        {
+            switch (code)
+            {
+            case REMINDER_TYPE_NONE:
+                return "None";
+            case REMINDER_TYPE_CLEAN_FILTER_ALT:
+            case REMINDER_TYPE_CLEAN_FILTER:
+                return "Clean Filter";
+            case REMINDER_TYPE_CHECK_SANITIZER:
+                return "Check Sanitizer";
+            case REMINDER_TYPE_CHECK_PH:
+                return "Check pH";
+            case REMINDER_TYPE_FAULT:
+                return "Fault";
+            default:
+                return nullptr;
+            }
+        }
 
         // Cleanup cycle state values (decoded from STATUS_IDX_CLEANUP lower nibble).
         enum CleanupCycleState : uint8_t

@@ -1,12 +1,13 @@
-#include "esphome.h"
-#include "esphome/core/log.h"
 #include "spa_thermostat.h"
-#include "esphome/components/climate/climate_mode.h"
+#include "esphome/core/log.h"
+#include "esphome/core/hal.h"
+#include <cmath>
 
 namespace esphome
 {
     namespace balboa_spa
     {
+        static const char *TAG = "balboa_spa.thermostat";
 
         climate::ClimateTraits BalboaSpaThermostat::traits()
         {
@@ -14,6 +15,21 @@ namespace esphome
             traits.set_supported_modes({climate::CLIMATE_MODE_OFF, climate::ClimateMode::CLIMATE_MODE_HEAT});
             traits.add_feature_flags(climate::CLIMATE_SUPPORTS_ACTION | climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
             traits.set_supported_presets({climate::ClimatePreset::CLIMATE_PRESET_HOME, climate::ClimatePreset::CLIMATE_PRESET_ECO});
+
+            // Match the visual range to what the spa accepts, in the scale this
+            // component publishes its temperatures in.
+            if (spa != nullptr && spa->get_esphome_temp_scale() == TEMP_SCALE::F)
+            {
+                traits.set_visual_min_temperature(ESPHOME_BALBOASPA_MIN_TEMPERATURE_F);
+                traits.set_visual_max_temperature(ESPHOME_BALBOASPA_MAX_TEMPERATURE_F);
+                traits.set_visual_temperature_step(1.0f);
+            }
+            else
+            {
+                traits.set_visual_min_temperature(ESPHOME_BALBOASPA_MIN_TEMPERATURE_C);
+                traits.set_visual_max_temperature(ESPHOME_BALBOASPA_MAX_TEMPERATURE_C);
+                traits.set_visual_temperature_step(0.5f);
+            }
             return traits;
         }
 
@@ -42,12 +58,12 @@ namespace esphome
 
                 if (requested_mode == climate::CLIMATE_MODE_HEAT && is_in_rest)
                 {
-                    ESP_LOGD("spa_thermostat", "Toggle from Rest to Heat (Ready)");
+                    ESP_LOGD(TAG, "Toggle from Rest to Heat (Ready)");
                     spa->toggle_heat();
                 }
                 else if (requested_mode == climate::CLIMATE_MODE_OFF && !is_in_rest)
                 {
-                    ESP_LOGD("spa_thermostat", "Toggle from Heat to Rest");
+                    ESP_LOGD(TAG, "Toggle from Heat to Rest");
                     spa->toggle_heat();
                 }
             }
@@ -97,7 +113,8 @@ namespace esphome
             needs_update = preset_mode != this->preset || needs_update;
             this->preset = preset_mode;
 
-            needs_update = this->last_update_time + 300000 < millis() || needs_update;
+            // Publish at least every 5 minutes (subtraction is rollover-safe)
+            needs_update = millis() - this->last_update_time >= 300000 || needs_update;
 
             if (needs_update)
             {

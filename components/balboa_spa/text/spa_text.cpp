@@ -108,8 +108,7 @@ namespace esphome
             uint8_t hour, minute;
             if (validate_time_format(value, hour, minute))
             {
-                this->parent_->set_hour(hour);
-                this->parent_->set_minute(minute);
+                this->parent_->set_time(hour, minute);
                 this->state = value;
                 this->publish_state(value);
                 ESP_LOGI(TAG, "Spa time set to: %s", value.c_str());
@@ -120,10 +119,6 @@ namespace esphome
             }
         }
 
-        bool SpaTimeText::validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute)
-        {
-            return ::esphome::balboa_spa::validate_time_format(time_str, hour, minute);
-        }
 
         // SpaFilter1StartTimeText implementation
         void SpaFilter1StartTimeText::set_parent(BalboaSpa *parent)
@@ -171,10 +166,6 @@ namespace esphome
             }
         }
 
-        bool SpaFilter1StartTimeText::validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute)
-        {
-            return ::esphome::balboa_spa::validate_time_format(time_str, hour, minute);
-        }
 
         // SpaFilter1DurationText implementation
         void SpaFilter1DurationText::set_parent(BalboaSpa *parent)
@@ -222,10 +213,6 @@ namespace esphome
             }
         }
 
-        bool SpaFilter1DurationText::validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute)
-        {
-            return ::esphome::balboa_spa::validate_time_format(time_str, hour, minute);
-        }
 
         // SpaFilter2StartTimeText implementation
         void SpaFilter2StartTimeText::set_parent(BalboaSpa *parent)
@@ -284,10 +271,6 @@ namespace esphome
             }
         }
 
-        bool SpaFilter2StartTimeText::validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute)
-        {
-            return ::esphome::balboa_spa::validate_time_format(time_str, hour, minute);
-        }
 
         // SpaFilter2DurationText implementation
         void SpaFilter2DurationText::set_parent(BalboaSpa *parent)
@@ -346,10 +329,6 @@ namespace esphome
             }
         }
 
-        bool SpaFilter2DurationText::validate_time_format(const std::string &time_str, uint8_t &hour, uint8_t &minute)
-        {
-            return ::esphome::balboa_spa::validate_time_format(time_str, hour, minute);
-        }
 
     } // namespace balboa_spa
 } // namespace esphome
