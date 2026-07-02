@@ -58,7 +58,9 @@ namespace esphome
             bool sensor_state_value;
             if (spa == nullptr || spaState == nullptr || (!spa->is_communicating() && sensor_type != BalboaSpaBinarySensorType::CONNECTED))
             {
-                this->publish_state(NAN);
+                // Note: publish_state takes a bool, so publishing NAN here would
+                // silently publish ON. Report OFF while the spa is unreachable.
+                this->publish_state(false);
                 return;
             }
 
@@ -71,7 +73,6 @@ namespace esphome
                 if (filterSettings == nullptr)
                 {
                     // Filter settings not available yet
-                    this->publish_state(NAN);
                     return;
                 }
             }
@@ -148,7 +149,8 @@ namespace esphome
                 return;
             }
 
-            if (this->state != sensor_state_value || this->last_update_time + 300000 < millis())
+            // Publish at least every 5 minutes (subtraction is rollover-safe)
+            if (this->state != sensor_state_value || millis() - this->last_update_time >= 300000)
             {
                 this->publish_state(sensor_state_value);
                 last_update_time = millis();

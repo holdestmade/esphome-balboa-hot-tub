@@ -1,31 +1,22 @@
 #pragma once
 
-#include "esphome/core/component.h"
-#include "esphome/components/switch/switch.h"
-#include "../balboaspa.h"
+#include "jet_switch_base.h"
 
 namespace esphome
 {
   namespace balboa_spa
   {
 
-    class BlowerSwitch : public switch_::Switch
+    // The blower is an on/off output, handled by the shared jet toggle logic
+    // (retry with max attempts, discard-updates window after a command).
+    class BlowerSwitch : public JetSwitchBase
     {
     public:
-      BlowerSwitch() {};
-      void update(const SpaState *spaState);
-      void set_parent(BalboaSpa *parent);
-      void set_discard_updates(uint8_t value) { this->discard_updates_config_ = value; }
+      BlowerSwitch() : JetSwitchBase("balboa_spa.blower_switch", "blower") {};
 
     protected:
-      void write_state(bool state) override;
-
-    private:
-      void toggle_blower();
-      BalboaSpa *spa = nullptr;
-      ToggleStateMaybe setState = ToggleStateMaybe::DONT_KNOW;
-      uint8_t discard_updates = 0;
-      uint8_t discard_updates_config_ = 10;
+      double get_jet_state(const SpaState *spaState) override { return spaState->blower; }
+      void toggle_jet() override { spa->toggle_blower(); }
     };
 
   } // namespace balboa_spa
